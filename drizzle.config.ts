@@ -2,28 +2,27 @@
 
 import type { Config } from 'drizzle-kit';
 
-// 1. You MUST replace <POOLER_HOST_FROM_SUPABASE> with your actual host here.
-const CLEAN_DATABASE_URL = "postgresql://postgres:123897%40Kk@<POOLER_HOST_FROM_SUPABASE>:5432/postgres";
+// 1. Use DATABASE_URL from environment variables
+const CLEAN_DATABASE_URL = process.env.DATABASE_URL!;
 
-// Safety check for your own visibility (FIXED MESSAGE)
-if (CLEAN_DATABASE_URL.includes("<POOLER_HOST_FROM_SUPABASE>")) {
-    throw new Error('drizzle.config.ts: CRITICAL ERROR - Please replace <POOLER_HOST_FROM_SUPABASE> with your actual Supabase Pooler host.');
+if (!CLEAN_DATABASE_URL) {
+  throw new Error('DATABASE_URL is not set in environment variables');
 }
 
 export default {
   // Schema path
-  schema: './lib/db/schema.ts', 
-  
+  schema: './lib/db/schema.ts',
+
   // Output path
-  out: './drizzle', 
-  
-  driver: 'pg', 
-  
+  out: './drizzle',
+
+  dialect: 'postgresql',
+
   // Cast to 'any' to explicitly tell TypeScript to ignore the warning
   dbCredentials: {
-    connectionString: CLEAN_DATABASE_URL, 
-  } as any, 
-  
+    connectionString: CLEAN_DATABASE_URL,
+  } as any,
+
   verbose: true,
   strict: true,
 } satisfies Config;
