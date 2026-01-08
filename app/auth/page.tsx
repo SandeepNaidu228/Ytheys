@@ -1,7 +1,7 @@
 // FILE: app/auth/page.tsx (Hypothetical page file)
 
 import SignInForm from '@/components/Sign-in'; 
-import { getSession } from '@/lib/session'; // Use getSession here
+// import { getSession } from '@/lib/session'; // Removed unused import
 import { redirect } from 'next/navigation';
 
 export default async function AuthPage() {

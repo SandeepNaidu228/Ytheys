@@ -11,10 +11,10 @@ import YC from "@/lib/YC.json";
 // --- START: NEW SERVICE DEFINITIONS ---
 
 const DOMAINS = [
-  'Web Development', 
-  'AI/Machine Learning', 
-  'Data & Analytics', 
-  'DevOps & Cloud', 
+  'Web Development',
+  'AI/Machine Learning',
+  'Data & Analytics',
+  'DevOps & Cloud',
   'Mobile App Development',
   'Marketing & SEO',
   'UI/UX Design',
@@ -32,35 +32,35 @@ const DOMAIN_SERVICES_MAP: { [key: string]: string[] } = {
 };
 
 const mapLanguageToDomain = (language: string | null): string => {
-    if (!language) return 'Unknown';
-    const lang = language.toLowerCase();
-    
-    if (['typescript', 'javascript', 'html', 'css', 'php', 'ruby'].includes(lang)) {
-        return 'Web Development';
-    }
-    if (['python', 'r'].includes(lang)) {
-        return 'AI/Machine Learning';
-    }
-    if (['java', 'scala', 'c++', 'go', 'c#'].includes(lang)) {
-        return 'DevOps & Cloud';
-    }
-    return 'Data & Analytics';
+  if (!language) return 'Unknown';
+  const lang = language.toLowerCase();
+
+  if (['typescript', 'javascript', 'html', 'css', 'php', 'ruby'].includes(lang)) {
+    return 'Web Development';
+  }
+  if (['python', 'r'].includes(lang)) {
+    return 'AI/Machine Learning';
+  }
+  if (['java', 'scala', 'c++', 'go', 'c#'].includes(lang)) {
+    return 'DevOps & Cloud';
+  }
+  return 'Data & Analytics';
 }
 
 const getRandomServices = (domain: string): string[] => {
-    const services = DOMAIN_SERVICES_MAP[domain] || DOMAIN_SERVICES_MAP.Other;
-    return services.slice(0, 3);
+  const services = DOMAIN_SERVICES_MAP[domain] || DOMAIN_SERVICES_MAP.Other;
+  return services.slice(0, 3);
 }
 
 // --- END: NEW SERVICE DEFINITIONS ---
 
 interface Agency {
-  agency_name: string; 
-  domain: string; 
-  services?: string[]; 
-  rating_count: number; 
-  projects_count: number; 
-  
+  agency_name: string;
+  domain: string;
+  services?: string[];
+  rating_count: number;
+  projects_count: number;
+
   imgUrl?: string;
   popularity?: "legendary" | "famous" | "popular" | "rising";
   githubUrl?: string;
@@ -106,11 +106,11 @@ const getPopularity = (ratings: number): "legendary" | "famous" | "popular" | "r
 // 🔥 NEW: Calculate trending score based on multiple factors
 const calculateTrendingScore = (agency: Agency): number => {
   const { rating_count, projects_count } = agency;
-  
+
   // Normalize values (assuming max values for scaling)
   const normalizedRatings = Math.log10(rating_count + 1) / 6; // log scale for ratings
   const normalizedProjects = Math.log10(projects_count + 1) / 5; // log scale for projects
-  
+
   // Weight formula: 
   // 60% based on projects (recent activity indicator)
   // 30% based on ratings (popularity indicator)
@@ -118,7 +118,7 @@ const calculateTrendingScore = (agency: Agency): number => {
   const projectWeight = normalizedProjects * 0.6;
   const ratingWeight = normalizedRatings * 0.3;
   const momentumBonus = agency.popularity === 'rising' ? 0.1 : 0;
-  
+
   return projectWeight + ratingWeight + momentumBonus;
 };
 
@@ -136,7 +136,7 @@ const renderCell = (
   const value = record[key];
 
   switch (key) {
-    case "agency_name": 
+    case "agency_name":
       return repoLink ? (
         <div className="relative inline-block">
           <Link
@@ -156,7 +156,7 @@ const renderCell = (
               />
             )}
             <span className="font-medium group">
-              {value} 
+              {value}
             </span>
             {/* Trending Badge */}
             {idx < 5 && (
@@ -169,7 +169,7 @@ const renderCell = (
       bg-gradient-to-r from-emerald-400/15 via-sky-400/10 to-purple-500/15 
       animate-pulse"></div>
                 <div className="relative z-10 font-medium leading-relaxed tracking-wide">
-                  {record.services?.length ? ( 
+                  {record.services?.length ? (
                     record.services.slice(0, 4).join(", ")
                   ) : (
                     <span className="text-neutral-500 italic">
@@ -187,7 +187,7 @@ const renderCell = (
         <span className="text-neutral-400">-</span>
       );
 
-    case "domain": 
+    case "domain":
       if (!value) return <span className="text-neutral-400">-</span>;
       const colorClass = DOMAIN_COLORS[value as keyof typeof DOMAIN_COLORS] || DOMAIN_COLORS.default;
       return (
@@ -212,7 +212,7 @@ const renderCell = (
         </span>
       );
 
-    case "services": 
+    case "services":
       if (Array.isArray(value) && value.length > 0) {
         return (
           <div className="flex flex-wrap gap-1">
@@ -234,8 +234,8 @@ const renderCell = (
         );
       }
 
-    case "rating_count": 
-    case "projects_count": 
+    case "rating_count":
+    case "projects_count":
       return (
         <span className="font-mono font-medium tabular-nums tracking-wider text-sm">
           {typeof value === "number" ? formatNumber(value) : "0"}
@@ -247,31 +247,31 @@ const renderCell = (
   }
 };
 
-export default function TrendingAgencies() { 
-  const [results, setResults] = useState<Agency[]>([]); 
+export default function TrendingAgencies() {
+  const [results, setResults] = useState<Agency[]>([]);
   const [filtered, setFiltered] = useState<Agency[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [query, setQuery] = useState('');
-  const [domain, setDomain] = useState(''); 
+  const [domain, setDomain] = useState('');
   const [popularity, setPopularity] = useState('');
   const [page, setPage] = useState(1);
-  
+
   useEffect(() => {
-    const fetchAgencyData = async () => { 
+    const fetchAgencyData = async () => {
       setIsLoading(true);
-      
-      const agencyData = YC as any as Agency[]; 
-      const repoNames = YC.map(r => r.repo).filter(Boolean) as string[];
+
+      const agencyData = YC as unknown as { company: string; repo: string; logo: string }[];
+      const repoNames = agencyData.map(r => r.repo).filter(Boolean);
 
       if (repoNames.length === 0) {
         setIsLoading(false);
         return;
       }
-      
+
       try {
         const fetched = await Promise.all(
           agencyData.map(async (agency) => {
-            const res = await fetch(`/api/githubOverview?repo=${agency.repo}`); 
+            const res = await fetch(`/api/githubOverview?repo=${agency.repo}`);
             if (!res.ok) return null;
             const raw = await res.json();
             const stars = raw.stargazers_count || 0;
@@ -280,15 +280,15 @@ export default function TrendingAgencies() {
             const assignedServices = getRandomServices(industryDomain);
 
             const agencyData: Agency = {
-              agency_name: agency.company, 
+              agency_name: agency.company,
               domain: industryDomain,
               services: assignedServices,
-              rating_count: stars, 
-              projects_count: raw.forks_count, 
-              imgUrl: (agency as any).logo, 
-              repoLink: agency.repo,        
+              rating_count: stars,
+              projects_count: raw.forks_count,
+              imgUrl: agency.logo,
+              repoLink: agency.repo,
               description: raw.description || "No service details available",
-              popularity: getPopularity(stars), 
+              popularity: getPopularity(stars),
               githubUrl: raw.html_url,
               html_url: raw.html_url,
             };
@@ -301,12 +301,12 @@ export default function TrendingAgencies() {
         );
 
         const clean = fetched.filter(Boolean) as Agency[];
-        
+
         // Sort by trending score (highest first)
-        const sortedByTrending = clean.sort((a, b) => 
+        const sortedByTrending = clean.sort((a, b) =>
           (b.trendingScore ?? 0) - (a.trendingScore ?? 0)
         );
-        
+
         setResults(sortedByTrending);
         setFiltered(sortedByTrending);
       } catch (err) {
@@ -320,25 +320,25 @@ export default function TrendingAgencies() {
   }, []);
 
   const debouncedFilter = useDebouncedCallback((q: string) => {
-    const filteredAgencies = results.filter(r => { 
+    const filteredAgencies = results.filter(r => {
       const matchQuery = !q || (
-        r.agency_name.toLowerCase().includes(q) || 
-        r.domain?.toLowerCase().includes(q) || 
+        r.agency_name.toLowerCase().includes(q) ||
+        r.domain?.toLowerCase().includes(q) ||
         r.popularity?.toLowerCase().includes(q) ||
-        r.services?.some((t) => t.toLowerCase().includes(q)) || 
+        r.services?.some((t) => t.toLowerCase().includes(q)) ||
         r.description?.toLowerCase().includes(q) ||
-        formatNumber(r.rating_count ?? 0).toLowerCase().includes(q) || 
-        formatNumber(r.projects_count ?? 0).toLowerCase().includes(q) 
+        formatNumber(r.rating_count ?? 0).toLowerCase().includes(q) ||
+        formatNumber(r.projects_count ?? 0).toLowerCase().includes(q)
       );
 
-      const matchDomain = !domain || r.domain?.toLowerCase() === domain.toLowerCase(); 
+      const matchDomain = !domain || r.domain?.toLowerCase() === domain.toLowerCase();
       const matchPopularity = !popularity || r.popularity === popularity;
 
       return matchQuery && matchDomain && matchPopularity;
     });
 
     // Keep trending sort even after filtering
-    const sortedAgencies = filteredAgencies.sort((a, b) => 
+    const sortedAgencies = filteredAgencies.sort((a, b) =>
       (b.trendingScore ?? 0) - (a.trendingScore ?? 0)
     );
 
@@ -347,7 +347,7 @@ export default function TrendingAgencies() {
 
   useEffect(() => {
     debouncedFilter(query.toLowerCase().trim());
-  }, [domain, popularity, debouncedFilter, query]); 
+  }, [domain, popularity, debouncedFilter, query]);
 
   return (
     <div className="relative w-full min-h-full p-8 z-10">
@@ -388,10 +388,10 @@ export default function TrendingAgencies() {
 
           <div className="flex flex-col sm:flex-row gap-3">
             <Select
-              value={domain} 
-              onChange={(e) => setDomain(e.target.value)} 
-              options={DOMAINS.map(dom => ({ value: dom.toLowerCase(), label: dom }))} 
-              placeholder="All Domains" 
+              value={domain}
+              onChange={(e) => setDomain(e.target.value)}
+              options={DOMAINS.map(dom => ({ value: dom.toLowerCase(), label: dom }))}
+              placeholder="All Domains"
             />
 
             <Select
@@ -427,14 +427,14 @@ export default function TrendingAgencies() {
                     Rank
                   </th>
                   {columns.map(({ key, label }) => (
-                    <th key={key} className={`${key === "topics" ? "text-center" : "text-left"} py-4 px-6 text-sm font-medium text-neutral-400 bg-neutral-900/30`}>
+                    <th key={key} className={`text-left py-4 px-6 text-sm font-medium text-neutral-400 bg-neutral-900/30`}>
                       {label}
                     </th>
                   ))}
                 </tr>
               </thead>
               <tbody>
-                {filtered.map((agency, idx) => ( 
+                {filtered.map((agency, idx) => (
                   <tr key={idx} className="border-b border-neutral-800/30 group hover:bg-neutral-900/20 transition">
                     <td className="py-4 px-6 text-sm">
                       <div className={`font-bold text-lg ${idx < 3 ? 'text-orange-400' : 'text-neutral-500'}`}>
@@ -454,7 +454,7 @@ export default function TrendingAgencies() {
 
           {/* Mobile Cards */}
           <div className="md:hidden space-y-4">
-            {filtered.map((agency, idx) => ( 
+            {filtered.map((agency, idx) => (
               <div key={idx} className="border border-neutral-800/50 p-4 bg-black/40 backdrop-blur-sm space-y-5 hover:border-neutral-700 transition relative">
                 <div className="absolute top-2 right-2 font-bold text-lg text-orange-400">
                   #{idx + 1}

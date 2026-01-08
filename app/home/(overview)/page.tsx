@@ -12,10 +12,10 @@ import YC from "@/lib/YC.json"; // Assuming YC.json
 
 // 1. 🟢 Define broad domains (Industry Categories)
 const DOMAINS = [
-  'Web Development', 
-  'AI/Machine Learning', 
-  'Data & Analytics', 
-  'DevOps & Cloud', 
+  'Web Development',
+  'AI/Machine Learning',
+  'Data & Analytics',
+  'DevOps & Cloud',
   'Mobile App Development',
   'Marketing & SEO',
   'UI/UX Design',
@@ -35,45 +35,47 @@ const DOMAIN_SERVICES_MAP: { [key: string]: string[] } = {
 
 // 3. 🟢 Helper to map GitHub language to a broad domain (used for the filter)
 const mapLanguageToDomain = (language: string | null): string => {
-    if (!language) return 'Unknown';
-    const lang = language.toLowerCase();
-    
-    // Mapping rules based on typical use cases
-    if (['typescript', 'javascript', 'html', 'css', 'php', 'ruby'].includes(lang)) {
-        return 'Web Development';
-    }
-    if (['python', 'r'].includes(lang)) {
-        return 'AI/Machine Learning';
-    }
-    if (['java', 'scala', 'c++', 'go', 'c#'].includes(lang)) {
-        return 'DevOps & Cloud';
-    }
-    // Default or other mappings
-    return 'Data & Analytics';
+  if (!language) return 'Unknown';
+  const lang = language.toLowerCase();
+
+  // Mapping rules based on typical use cases
+  if (['typescript', 'javascript', 'html', 'css', 'php', 'ruby'].includes(lang)) {
+    return 'Web Development';
+  }
+  if (['python', 'r'].includes(lang)) {
+    return 'AI/Machine Learning';
+  }
+  if (['java', 'scala', 'c++', 'go', 'c#'].includes(lang)) {
+    return 'DevOps & Cloud';
+  }
+  // Default or other mappings
+  return 'Data & Analytics';
 }
 
 // 4. 🟢 Helper to get 2-3 services based on the calculated domain
 const getRandomServices = (domain: string): string[] => {
-    const services = DOMAIN_SERVICES_MAP[domain] || DOMAIN_SERVICES_MAP.Other;
-    // Simple way to grab 3 services:
-    return services.slice(0, 3);
+  const services = DOMAIN_SERVICES_MAP[domain] || DOMAIN_SERVICES_MAP.Other;
+  // Simple way to grab 3 services:
+  return services.slice(0, 3);
 }
 
 // --- END: NEW SERVICE DEFINITIONS ---
 
 // 🟢 REFACTORED INTERFACE (Same as before, but linked to new definitions)
 interface Agency {
-  agency_name: string; 
-  domain: string; 
-  services?: string[]; 
-  rating_count: number; 
-  projects_count: number; 
-  
+  agency_name: string;
+  domain: string;
+  services?: string[];
+  rating_count: number;
+  projects_count: number;
+
   imgUrl?: string;
   popularity?: "legendary" | "famous" | "popular" | "rising";
   githubUrl?: string;
   owner?: { avatar_url: string };
   html_url: string;
+  description?: string;
+  repoLink?: string;
 }
 
 type ColumnKey = keyof Pick<
@@ -123,7 +125,7 @@ const renderCell = (
   const value = record[key];
 
   switch (key) {
-    case "agency_name": 
+    case "agency_name":
       return repoLink ? (
         <div className="relative inline-block">
           <Link
@@ -143,7 +145,7 @@ const renderCell = (
               />
             )}
             <span className="font-medium group">
-              {value} 
+              {value}
             </span>
             {/* Tooltip for Services/Description */}
             <div className="absolute left-3/4 top-4 cursor-pointer mt-2 w-64 p-3 rounded-lg bg-gradient-to-br from-neutral-900/95 to-neutral-950/95 backdrop-blur-xl text-neutral-200 text-sm shadow-xl border border-neutral-700/40 opacity-0 scale-95 translate-y-1 group-hover:opacity-100 group-hover:scale-100 group-hover:translate-y-0 transition-all duration-300 ease-out z-20 before:content-[''] before:absolute before:top-0 before:left-6 before:w-0 before:h-0 before:border-l-6 before:border-r-6 before:border-b-6 before:border-l-transparent before:border-r-transparent before:border-b-neutral-900/95 before:-translate-y-1.5">
@@ -155,7 +157,7 @@ const renderCell = (
 
                 <div className="relative z-10 font-medium leading-relaxed tracking-wide">
                   {/* Display list of Services (topics) */}
-                  {record.services?.length ? ( 
+                  {record.services?.length ? (
                     record.services.slice(0, 4).join(", ")
                   ) : (
                     <span className="text-neutral-500 italic">
@@ -175,7 +177,7 @@ const renderCell = (
       );
 
 
-    case "domain": 
+    case "domain":
       if (!value) return <span className="text-neutral-400">-</span>;
       // Use the actual domain value for color lookup
       const colorClass = DOMAIN_COLORS[value as keyof typeof DOMAIN_COLORS] || DOMAIN_COLORS.default;
@@ -201,7 +203,7 @@ const renderCell = (
         </span>
       );
 
-    case "services": 
+    case "services":
       // 🟢 FIX: Use the list of assigned services
       if (Array.isArray(value) && value.length > 0) {
         return (
@@ -225,8 +227,8 @@ const renderCell = (
         );
       }
 
-    case "rating_count": 
-    case "projects_count": 
+    case "rating_count":
+    case "projects_count":
       return (
         <span className="font-mono font-medium tabular-nums tracking-wider text-sm">
           {typeof value === "number" ? formatNumber(value) : "0"}
@@ -238,31 +240,31 @@ const renderCell = (
   }
 };
 
-export default function AgencyDiscovery() { 
-  const [results, setResults] = useState<Agency[]>([]); 
+export default function AgencyDiscovery() {
+  const [results, setResults] = useState<Agency[]>([]);
   const [filtered, setFiltered] = useState<Agency[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [query, setQuery] = useState('');
-  const [domain, setDomain] = useState(''); 
+  const [domain, setDomain] = useState('');
   const [popularity, setPopularity] = useState('');
   const [page, setPage] = useState(1);
-  
+
   useEffect(() => {
-    const fetchAgencyData = async () => { 
+    const fetchAgencyData = async () => {
       setIsLoading(true);
-      
-      const agencyData = YC as any as Agency[]; 
-      const repoNames = YC.map(r => r.repo).filter(Boolean) as string[];
+
+      const agencyData = YC as unknown as { company: string; repo: string; logo: string }[];
+      const repoNames = agencyData.map(r => r.repo).filter(Boolean);
 
       if (repoNames.length === 0) {
         setIsLoading(false);
         return;
       }
-      
+
       try {
         const fetched = await Promise.all(
           agencyData.map(async (agency) => {
-            const res = await fetch(`/api/githubOverview?repo=${agency.repo}`); 
+            const res = await fetch(`/api/githubOverview?repo=${agency.repo}`);
             if (!res.ok) return null;
             const raw = await res.json();
             const stars = raw.stargazers_count || 0;
@@ -272,17 +274,17 @@ export default function AgencyDiscovery() {
             const assignedServices = getRandomServices(industryDomain); // 🚨 FIX: Assign 2-3 meaningful services
 
             return {
-              agency_name: agency.company, 
+              agency_name: agency.company,
               domain: industryDomain, // Mapped category
               services: assignedServices, // 🚨 FIX: Use the assigned, meaningful services
-              rating_count: stars, 
-              projects_count: raw.forks_count, 
-              imgUrl: (agency as any).logo, 
-              repoLink: agency.repo,        
+              rating_count: stars,
+              projects_count: raw.forks_count,
+              imgUrl: agency.logo,
+              repoLink: agency.repo,
               description: raw.description || "No service details available",
-              popularity: getPopularity(stars), 
+              popularity: getPopularity(stars),
               githubUrl: raw.html_url,
-              html_url: raw.html_url, 
+              html_url: raw.html_url,
             } as Agency;
           })
         );
@@ -301,25 +303,25 @@ export default function AgencyDiscovery() {
   }, []);
 
   const debouncedFilter = useDebouncedCallback((q: string) => {
-    const filteredAgencies = results.filter(r => { 
+    const filteredAgencies = results.filter(r => {
       const matchQuery = !q || (
-        r.agency_name.toLowerCase().includes(q) || 
-        r.domain?.toLowerCase().includes(q) || 
+        r.agency_name.toLowerCase().includes(q) ||
+        r.domain?.toLowerCase().includes(q) ||
         r.popularity?.toLowerCase().includes(q) ||
-        r.services?.some((t) => t.toLowerCase().includes(q)) || 
+        r.services?.some((t) => t.toLowerCase().includes(q)) ||
         r.description?.toLowerCase().includes(q) || // Added description filter
-        formatNumber(r.rating_count ?? 0).toLowerCase().includes(q) || 
-        formatNumber(r.projects_count ?? 0).toLowerCase().includes(q) 
+        formatNumber(r.rating_count ?? 0).toLowerCase().includes(q) ||
+        formatNumber(r.projects_count ?? 0).toLowerCase().includes(q)
       );
 
-      const matchDomain = !domain || r.domain?.toLowerCase() === domain.toLowerCase(); 
+      const matchDomain = !domain || r.domain?.toLowerCase() === domain.toLowerCase();
       const matchPopularity = !popularity || r.popularity === popularity;
 
       return matchQuery && matchDomain && matchPopularity;
     });
 
     // Sort by projects_count in descending order (high to low)
-    const sortedAgencies = filteredAgencies.sort((a, b) => 
+    const sortedAgencies = filteredAgencies.sort((a, b) =>
       (b.projects_count ?? 0) - (a.projects_count ?? 0)
     );
 
@@ -328,7 +330,7 @@ export default function AgencyDiscovery() {
 
   useEffect(() => {
     debouncedFilter(query.toLowerCase().trim());
-  }, [domain, popularity, debouncedFilter, query]); 
+  }, [domain, popularity, debouncedFilter, query]);
 
 
   return (
@@ -367,11 +369,11 @@ export default function AgencyDiscovery() {
 
           <div className="flex flex-col sm:flex-row gap-3">
             <Select
-              value={domain} 
-              onChange={(e) => setDomain(e.target.value)} 
+              value={domain}
+              onChange={(e) => setDomain(e.target.value)}
               // 🚨 FIX: Use the static list of industry DOMAINS for the filter dropdown
-              options={DOMAINS.map(dom => ({ value: dom.toLowerCase(), label: dom }))} 
-              placeholder="All Domains" 
+              options={DOMAINS.map(dom => ({ value: dom.toLowerCase(), label: dom }))}
+              placeholder="All Domains"
             />
 
             <Select
@@ -404,14 +406,14 @@ export default function AgencyDiscovery() {
               <thead>
                 <tr className="border-b border-neutral-800/50">
                   {columns.map(({ key, label }) => (
-                    <th key={key} className={`${key === "topics" ? "text-center" : "text-left"} py-4 px-6 text-sm font-medium text-neutral-400 bg-neutral-900/30`}>
+                    <th key={key} className={`text-left py-4 px-6 text-sm font-medium text-neutral-400 bg-neutral-900/30`}>
                       {label}
                     </th>
                   ))}
                 </tr>
               </thead>
               <tbody>
-                {filtered.map((agency, idx) => ( 
+                {filtered.map((agency, idx) => (
                   <tr key={idx} className="border-b border-neutral-800/30 group hover:bg-neutral-900/20 transition">
                     {columns.map(({ key }) => (
                       <td key={key} className="py-4 px-6 text-sm">
@@ -426,7 +428,7 @@ export default function AgencyDiscovery() {
 
           {/* Mobile Cards */}
           <div className="md:hidden space-y-4">
-            {filtered.map((agency, idx) => ( 
+            {filtered.map((agency, idx) => (
               <div key={idx} className="border border-neutral-800/50 p-4 bg-black/40 backdrop-blur-sm space-y-5 hover:border-neutral-700 transition">
                 <div className="flex flex-col gap-2 text-sm text-white font-medium">
                   {renderCell(agency, "agency_name", idx, agency.repoLink)}

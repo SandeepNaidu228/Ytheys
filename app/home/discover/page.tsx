@@ -8,15 +8,7 @@ import YC from "@/lib/YC.json";
 
 // --- SERVICE DEFINITIONS ---
 
-const DOMAINS = [
-  'Web Development', 
-  'AI/Machine Learning', 
-  'Data & Analytics', 
-  'DevOps & Cloud', 
-  'Mobile App Development',
-  'Marketing & SEO',
-  'UI/UX Design',
-];
+// DOMAINS constant removed as it was unused
 
 const DOMAIN_SERVICES_MAP: { [key: string]: string[] } = {
   'Web Development': ['Frontend Engineering', 'E-commerce Solutions', 'CMS Integration', 'API Development'],
@@ -30,32 +22,32 @@ const DOMAIN_SERVICES_MAP: { [key: string]: string[] } = {
 };
 
 const mapLanguageToDomain = (language: string | null): string => {
-    if (!language) return 'Unknown';
-    const lang = language.toLowerCase();
-    
-    if (['typescript', 'javascript', 'html', 'css', 'php', 'ruby'].includes(lang)) {
-        return 'Web Development';
-    }
-    if (['python', 'r'].includes(lang)) {
-        return 'AI/Machine Learning';
-    }
-    if (['java', 'scala', 'c++', 'go', 'c#'].includes(lang)) {
-        return 'DevOps & Cloud';
-    }
-    return 'Data & Analytics';
+  if (!language) return 'Unknown';
+  const lang = language.toLowerCase();
+
+  if (['typescript', 'javascript', 'html', 'css', 'php', 'ruby'].includes(lang)) {
+    return 'Web Development';
+  }
+  if (['python', 'r'].includes(lang)) {
+    return 'AI/Machine Learning';
+  }
+  if (['java', 'scala', 'c++', 'go', 'c#'].includes(lang)) {
+    return 'DevOps & Cloud';
+  }
+  return 'Data & Analytics';
 }
 
 const getRandomServices = (domain: string): string[] => {
-    const services = DOMAIN_SERVICES_MAP[domain] || DOMAIN_SERVICES_MAP.Other;
-    return services.slice(0, 3);
+  const services = DOMAIN_SERVICES_MAP[domain] || DOMAIN_SERVICES_MAP.Other;
+  return services.slice(0, 3);
 }
 
 interface Agency {
-  agency_name: string; 
-  domain: string; 
-  services?: string[]; 
-  rating_count: number; 
-  projects_count: number; 
+  agency_name: string;
+  domain: string;
+  services?: string[];
+  rating_count: number;
+  projects_count: number;
   imgUrl?: string;
   popularity?: "legendary" | "famous" | "popular" | "rising";
   html_url: string;
@@ -87,26 +79,26 @@ const formatNumber = (n: number) =>
 // AI Matching Algorithm
 const matchAgenciesToPrompt = (prompt: string, agencies: Agency[]): Agency[] => {
   const lowerPrompt = prompt.toLowerCase();
-  
+
   // Extract keywords from prompt
   const keywords = lowerPrompt.split(/\s+/).filter(word => word.length > 3);
-  
+
   // Score each agency based on relevance
   const scoredAgencies = agencies.map(agency => {
     let score = 0;
-    
+
     // Check domain match
     if (lowerPrompt.includes(agency.domain.toLowerCase())) {
       score += 30;
     }
-    
+
     // Check services match
     agency.services?.forEach(service => {
       if (lowerPrompt.includes(service.toLowerCase())) {
         score += 20;
       }
     });
-    
+
     // Check description match
     if (agency.description) {
       keywords.forEach(keyword => {
@@ -115,7 +107,7 @@ const matchAgenciesToPrompt = (prompt: string, agencies: Agency[]): Agency[] => 
         }
       });
     }
-    
+
     // Keyword matching in domain and services
     keywords.forEach(keyword => {
       if (agency.domain.toLowerCase().includes(keyword)) {
@@ -127,18 +119,18 @@ const matchAgenciesToPrompt = (prompt: string, agencies: Agency[]): Agency[] => 
         }
       });
     });
-    
+
     // Boost popular agencies slightly
     if (agency.popularity === 'legendary') score += 5;
     else if (agency.popularity === 'famous') score += 3;
-    
+
     // Boost agencies with high project count (active agencies)
     if (agency.projects_count > 1000) score += 5;
     else if (agency.projects_count > 500) score += 3;
-    
+
     return { ...agency, matchScore: score };
   });
-  
+
   // Sort by score and return top 3
   return scoredAgencies
     .filter(a => a.matchScore! > 0)
@@ -168,15 +160,15 @@ export default function AIAgencyMatcher() {
   useEffect(() => {
     const fetchAgencyData = async () => {
       setIsInitializing(true);
-      
-      const agencyData = YC as any as Agency[];
-      const repoNames = YC.map(r => r.repo).filter(Boolean) as string[];
+
+      const agencyData = YC as unknown as { company: string; repo: string; logo: string }[];
+      const repoNames = agencyData.map(r => r.repo).filter(Boolean);
 
       if (repoNames.length === 0) {
         setIsInitializing(false);
         return;
       }
-      
+
       try {
         const fetched = await Promise.all(
           agencyData.map(async (agency) => {
@@ -194,7 +186,7 @@ export default function AIAgencyMatcher() {
               services: assignedServices,
               rating_count: stars,
               projects_count: raw.forks_count,
-              imgUrl: (agency as any).logo,
+              imgUrl: agency.logo,
               repoLink: agency.repo,
               description: raw.description || "No service details available",
               popularity: getPopularity(stars),
@@ -233,7 +225,7 @@ export default function AIAgencyMatcher() {
     // Simulate AI processing delay
     setTimeout(() => {
       const matchedAgencies = matchAgenciesToPrompt(userMessage.content, agencies);
-      
+
       const assistantMessage: Message = {
         id: (Date.now() + 1).toString(),
         type: 'assistant',
@@ -281,14 +273,14 @@ export default function AIAgencyMatcher() {
               <div className="relative">
                 <div className="absolute inset-0 bg-gradient-to-br from-yellow-400 via-orange-500 to-pink-500 rounded-2xl blur-md opacity-50" />
                 {/* <div className="relative w-12 h-12 rounded-2xl bg-gradient-to-br from-yellow-400 via-orange-500 to-pink-500 flex items-center justify-center shadow-lg"> */}
-                  {/* <Sparkles className="w-6 h-6 text-white" /> */}
+                {/* <Sparkles className="w-6 h-6 text-white" /> */}
                 {/* </div> */}
               </div>
               <div>
-              <Link href="/" className="inline-flex font-instrument items-center font-mono text-white text-[1.9rem] sm:text-[2.5rem] font-medium leading-none tracking-tight">
-              <span className="text-white">Yth</span>
-              <span className="text-neutral-500">eys</span>
-              </Link>
+                <Link href="/" className="inline-flex font-instrument items-center font-mono text-white text-[1.9rem] sm:text-[2.5rem] font-medium leading-none tracking-tight">
+                  <span className="text-white">Yth</span>
+                  <span className="text-neutral-500">eys</span>
+                </Link>
               </div>
             </div>
             {!isInitializing && agencies.length > 0 && (
@@ -368,14 +360,13 @@ export default function AIAgencyMatcher() {
                       </div>
                     </div>
                   )}
-                  
+
                   <div className={`flex flex-col gap-4 max-w-3xl ${message.type === 'user' ? 'items-end' : 'items-start'}`}>
                     <div
-                      className={`px-5 py-3 rounded-2xl shadow-lg ${
-                        message.type === 'user'
-                          ? 'bg-gradient-to-r from-blue-600 to-blue-500 text-white'
-                          : 'bg-neutral-900/60 border border-neutral-800/50 text-neutral-200 backdrop-blur-sm'
-                      }`}
+                      className={`px-5 py-3 rounded-2xl shadow-lg ${message.type === 'user'
+                        ? 'bg-gradient-to-r from-blue-600 to-blue-500 text-white'
+                        : 'bg-neutral-900/60 border border-neutral-800/50 text-neutral-200 backdrop-blur-sm'
+                        }`}
                     >
                       {message.content}
                     </div>
@@ -447,15 +438,14 @@ export default function AIAgencyMatcher() {
                                       <span className="font-mono font-semibold text-white">{formatNumber(agency.projects_count)}</span>
                                     </div>
                                     <span
-                                      className={`capitalize text-xs px-3 py-1 rounded-lg font-semibold ${
-                                        agency.popularity === 'legendary'
-                                          ? 'bg-gradient-to-r from-yellow-500/20 to-orange-500/20 text-yellow-400 border border-yellow-400/30'
-                                          : agency.popularity === 'famous'
+                                      className={`capitalize text-xs px-3 py-1 rounded-lg font-semibold ${agency.popularity === 'legendary'
+                                        ? 'bg-gradient-to-r from-yellow-500/20 to-orange-500/20 text-yellow-400 border border-yellow-400/30'
+                                        : agency.popularity === 'famous'
                                           ? 'bg-purple-500/15 text-purple-400 border border-purple-400/30'
                                           : agency.popularity === 'popular'
-                                          ? 'bg-sky-500/15 text-sky-400 border border-sky-400/30'
-                                          : 'bg-green-500/15 text-green-400 border border-green-400/30'
-                                      }`}
+                                            ? 'bg-sky-500/15 text-sky-400 border border-sky-400/30'
+                                            : 'bg-green-500/15 text-green-400 border border-green-400/30'
+                                        }`}
                                     >
                                       {agency.popularity === 'legendary' && '🏆 '}
                                       {agency.popularity}
@@ -523,7 +513,7 @@ export default function AIAgencyMatcher() {
                   </div>
                 </div>
               )}
-              
+
               <div ref={messagesEndRef} />
             </div>
           )}

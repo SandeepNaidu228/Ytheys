@@ -2,7 +2,7 @@
 
 import { auth } from "@/lib/auth";
 import { headers } from "next/headers";
-import { redirect } from "next/navigation";
+// limit unused import
 // Removed unused import: import { redirect } from "next/navigation"; 
 
 export async function getSession() {
@@ -20,18 +20,18 @@ export async function getSession() {
 // 🟢 FIX: This function now FORCES a session for development/admin use.
 // Any component that calls this function will assume the admin is logged in.
 export async function requireAuth() {
-    console.log("⚠️ Bypassing Authentication: Returning Admin Session.");
-    
-    // Return a hardcoded 'admin' session object. 
-    // You can add a 'role: "admin"' property here if your schema supports it.
-    return { 
-        user: { 
-            id: "ADMIN_BYPASS_ID_001", 
-            email: "admin@ossean.in", 
-            name: "Admin Dev User",
-            // Add other necessary user properties here if your app uses them
-        } 
-    };
+  console.log("⚠️ Bypassing Authentication: Returning Admin Session.");
+
+  // Return a hardcoded 'admin' session object. 
+  // You can add a 'role: "admin"' property here if your schema supports it.
+  return {
+    user: {
+      id: "ADMIN_BYPASS_ID_001",
+      email: "admin@ossean.in",
+      name: "Admin Dev User",
+      // Add other necessary user properties here if your app uses them
+    }
+  };
 }
 
 // This function allows the /auth page to load without erroring.
