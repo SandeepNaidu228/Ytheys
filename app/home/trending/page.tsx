@@ -8,7 +8,40 @@ import Select from "@/components/Select";
 import { ChevronsLeft, ChevronsRight, TrendingUp, Star } from 'lucide-react';
 import YC from "@/lib/YC.json";
 
-// --- START: NEW SERVICE DEFINITIONS ---
+// --- TYPES ---
+
+interface YCData {
+  logo: string;
+  company: string;
+  repo: string;
+  rating_count: number;
+  projects_count: number;
+  website: string;
+}
+
+interface Agency {
+  agency_name: string;
+  domain: string;
+  services?: string[];
+  rating_count: number;
+  projects_count: number;
+  imgUrl?: string;
+  popularity?: "legendary" | "famous" | "popular" | "rising";
+  githubUrl?: string;
+  owner?: { avatar_url: string };
+  html_url: string;
+  trendingScore?: number;
+  description?: string;
+  repoLink?: string;
+  websiteUrl?: string;
+}
+
+type ColumnKey = keyof Pick<
+  Agency,
+  "agency_name" | "domain" | "services" | "rating_count" | "projects_count" | "popularity"
+>;
+
+// --- CONSTANTS ---
 
 const DOMAINS = [
   'Web Development',
@@ -31,19 +64,14 @@ const DOMAIN_SERVICES_MAP: { [key: string]: string[] } = {
   'Other': ['General Consulting', 'Security Audits', 'Compliance'],
 };
 
+// --- LOGIC ---
+
 const mapLanguageToDomain = (language: string | null): string => {
   if (!language) return 'Unknown';
   const lang = language.toLowerCase();
-
-  if (['typescript', 'javascript', 'html', 'css', 'php', 'ruby'].includes(lang)) {
-    return 'Web Development';
-  }
-  if (['python', 'r'].includes(lang)) {
-    return 'AI/Machine Learning';
-  }
-  if (['java', 'scala', 'c++', 'go', 'c#'].includes(lang)) {
-    return 'DevOps & Cloud';
-  }
+  if (['typescript', 'javascript', 'html', 'css', 'php', 'ruby'].includes(lang)) return 'Web Development';
+  if (['python', 'r'].includes(lang)) return 'AI/Machine Learning';
+  if (['java', 'scala', 'c++', 'go', 'c#'].includes(lang)) return 'DevOps & Cloud';
   return 'Data & Analytics';
 }
 
@@ -52,38 +80,25 @@ const getRandomServices = (domain: string): string[] => {
   return services.slice(0, 3);
 }
 
-// --- END: NEW SERVICE DEFINITIONS ---
+const getPopularity = (ratings: number): "legendary" | "famous" | "popular" | "rising" => {
+  if (ratings >= 4.8) return 'legendary';
+  if (ratings >= 4.5) return 'famous';
+  if (ratings >= 4.0) return 'popular';
+  return 'rising';
+};
 
-interface Agency {
-  agency_name: string;
-  domain: string;
-  services?: string[];
-  rating_count: number;
-  projects_count: number;
-  imgUrl?: string;
-  popularity?: "legendary" | "famous" | "popular" | "rising";
-  githubUrl?: string;
-  owner?: { avatar_url: string };
-  html_url: string;
-  trendingScore?: number;
-  description?: string;
-  repoLink?: string;
-  websiteUrl?: string; // For website redirect
-}
+const calculateTrendingScore = (agency: Agency): number => {
+  const { rating_count, projects_count } = agency;
+  const normalizedRatings = rating_count / 5;
+  const normalizedProjects = Math.log10(projects_count + 1) / 5;
+  const projectWeight = normalizedProjects * 0.6;
+  const ratingWeight = normalizedRatings * 0.3;
+  const momentumBonus = agency.popularity === 'rising' ? 0.1 : 0;
+  return projectWeight + ratingWeight + momentumBonus;
+};
 
-type ColumnKey = keyof Pick<
-  Agency,
-  "agency_name" | "domain" | "services" | "rating_count" | "projects_count" | "popularity"
->;
-
-const columns: { key: ColumnKey; label: string }[] = [
-  { key: "agency_name", label: "Agency" },
-  { key: "domain", label: "Domain" },
-  { key: "services", label: "Services" },
-  { key: "rating_count", label: "Ratings" },
-  { key: "projects_count", label: "Projects" },
-  { key: "popularity", label: "Popularity" },
-];
+const formatNumber = (n: number) =>
+  n >= 1e6 ? `${+(n / 1e6).toFixed(1)}M` : n >= 1e3 ? `${+(n / 1e3).toFixed(1)}k` : n.toString();
 
 const DOMAIN_COLORS = {
   'Web Development': 'bg-blue-500/10 text-blue-400 border-blue-400/20',
@@ -96,29 +111,14 @@ const DOMAIN_COLORS = {
   default: 'bg-neutral-500/10 text-neutral-400 border-neutral-400/20',
 };
 
-const getPopularity = (ratings: number): "legendary" | "famous" | "popular" | "rising" => {
-  if (ratings >= 4.8) return 'legendary';
-  if (ratings >= 4.5) return 'famous';
-  if (ratings >= 4.0) return 'popular';
-  return 'rising';
-};
-
-const calculateTrendingScore = (agency: Agency): number => {
-  const { rating_count, projects_count } = agency;
-  const normalizedRatings = rating_count / 5; 
-  const normalizedProjects = Math.log10(projects_count + 1) / 5;
-
-  const projectWeight = normalizedProjects * 0.6;
-  const ratingWeight = normalizedRatings * 0.3;
-  const momentumBonus = agency.popularity === 'rising' ? 0.1 : 0;
-
-  return projectWeight + ratingWeight + momentumBonus;
-};
-
-const formatNumber = (n: number) =>
-  n >= 1e6 ? `${+(n / 1e6).toFixed(1)}M` :
-    n >= 1e3 ? `${+(n / 1e3).toFixed(1)}k` :
-      n.toString();
+const columns: { key: ColumnKey; label: string }[] = [
+  { key: "agency_name", label: "Agency" },
+  { key: "domain", label: "Domain" },
+  { key: "services", label: "Services" },
+  { key: "rating_count", label: "Ratings" },
+  { key: "projects_count", label: "Projects" },
+  { key: "popularity", label: "Popularity" },
+];
 
 const renderCell = (
   record: Agency,
@@ -219,7 +219,7 @@ const renderCell = (
 
     case "projects_count":
       return (
-        <span className="font-mono font-medium tabular-nums tracking-wider text-sm">
+        <span className="font-mono font-medium tabular-nums tracking-wider text-sm text-neutral-300">
           {typeof value === "number" ? formatNumber(value) : "0"}
         </span>
       );
@@ -241,7 +241,8 @@ export default function TrendingAgencies() {
   useEffect(() => {
     const fetchAgencyData = async () => {
       setIsLoading(true);
-      const agencyData = YC as unknown as any[];
+      // 🟢 Fix: Use proper interface instead of any
+      const agencyData = YC as unknown as YCData[];
 
       try {
         const fetched = await Promise.all(
@@ -252,7 +253,6 @@ export default function TrendingAgencies() {
             const industryDomain = mapLanguageToDomain(raw.language);
             const assignedServices = getRandomServices(industryDomain);
 
-            // PRIORITY: JSON Value -> API Fallback
             const finalRating = agency.rating_count ?? 4.0;
             const finalProjects = agency.projects_count ?? (raw.forks_count || 0);
 
@@ -419,9 +419,9 @@ export default function TrendingAgencies() {
           </div>
 
           <div className="flex gap-3 mt-8 justify-center">
-            <button onClick={() => setPage(p => Math.max(p - 1, 1))} disabled={page === 1} className="hover:bg-neutral-900/20 cursor-pointer disabled:opacity-50 bg-black/40 border border-neutral-800/50 px-4 py-2 text-white transition-all"><ChevronsLeft /></button>
+            <button onClick={() => setPage(prev => Math.max(prev - 1, 1))} disabled={page === 1} className="hover:bg-neutral-900/20 cursor-pointer disabled:opacity-50 bg-black/40 border border-neutral-800/50 px-4 py-2 text-white transition-all"><ChevronsLeft /></button>
             <span className="bg-black/40 border border-neutral-800/50 px-4 py-2 text-white">{page}</span>
-            <button onClick={() => setPage(p => p + 1)} className="hover:bg-neutral-900/20 cursor-pointer bg-black/40 border border-neutral-800/50 px-4 py-2 text-white transition-all"><ChevronsRight /></button>
+            <button onClick={() => setPage(prev => prev + 1)} className="hover:bg-neutral-900/20 cursor-pointer bg-black/40 border border-neutral-800/50 px-4 py-2 text-white transition-all"><ChevronsRight /></button>
           </div>
         </>
       ) : (

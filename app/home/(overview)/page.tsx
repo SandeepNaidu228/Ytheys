@@ -8,7 +8,32 @@ import Select from "@/components/Select";
 import { ChevronsLeft, ChevronsRight, Star } from 'lucide-react';
 import YC from "@/lib/YC.json";
 
-// --- START: NEW SERVICE DEFINITIONS ---
+// --- TYPES ---
+
+interface YCData {
+  company: string;
+  repo: string;
+  logo: string;
+  rating_count?: number;
+  projects_count?: number;
+  website?: string;
+}
+
+interface Agency {
+  agency_name: string;
+  domain: string;
+  services?: string[];
+  rating_count: number;
+  projects_count: number;
+  imgUrl?: string;
+  popularity?: "legendary" | "famous" | "popular" | "rising";
+  githubUrl?: string;
+  description?: string;
+  repoLink?: string;
+  websiteUrl?: string;
+}
+
+// --- CONSTANTS ---
 
 const DOMAINS = [
   'Web Development',
@@ -31,6 +56,8 @@ const DOMAIN_SERVICES_MAP: { [key: string]: string[] } = {
   'Other': ['General Consulting', 'Security Audits', 'Compliance'],
 };
 
+// --- HELPERS ---
+
 const mapLanguageToDomain = (language: string | null): string => {
   if (!language) return 'Unknown';
   const lang = language.toLowerCase();
@@ -45,21 +72,28 @@ const getRandomServices = (domain: string): string[] => {
   return services.slice(0, 3);
 }
 
-// --- END: NEW SERVICE DEFINITIONS ---
+const getPopularity = (ratings: number): "legendary" | "famous" | "popular" | "rising" => {
+  if (ratings >= 4.8) return 'legendary';
+  if (ratings >= 4.5) return 'famous';
+  if (ratings >= 4.0) return 'popular';
+  return 'rising';
+};
 
-interface Agency {
-  agency_name: string;
-  domain: string;
-  services?: string[];
-  rating_count: number;
-  projects_count: number;
-  imgUrl?: string;
-  popularity?: "legendary" | "famous" | "popular" | "rising";
-  githubUrl?: string;
-  description?: string;
-  repoLink?: string;
-  websiteUrl?: string; // For website redirect
-}
+const formatNumber = (n: number) =>
+  n >= 1e6 ? `${+(n / 1e6).toFixed(1)}M` :
+    n >= 1e3 ? `${+(n / 1e3).toFixed(1)}k` :
+      n.toString();
+
+const DOMAIN_COLORS = {
+  'Web Development': 'bg-blue-500/10 text-blue-400 border-blue-400/20',
+  'AI/Machine Learning': 'bg-emerald-500/10 text-emerald-400 border-emerald-400/20',
+  'Data & Analytics': 'bg-cyan-500/10 text-cyan-400 border-cyan-400/20',
+  'DevOps & Cloud': 'bg-red-500/10 text-red-400 border-red-400/20',
+  'Mobile App Development': 'bg-purple-500/10 text-purple-400 border-purple-400/20',
+  'Marketing & SEO': 'bg-yellow-500/10 text-yellow-400 border-yellow-400/20',
+  'UI/UX Design': 'bg-pink-500/10 text-pink-400 border-pink-400/20',
+  default: 'bg-neutral-500/10 text-neutral-400 border-neutral-400/20',
+};
 
 type ColumnKey = keyof Pick<
   Agency,
@@ -75,33 +109,10 @@ const columns: { key: ColumnKey; label: string }[] = [
   { key: "popularity", label: "Popularity" },
 ];
 
-const DOMAIN_COLORS = {
-  'Web Development': 'bg-blue-500/10 text-blue-400 border-blue-400/20',
-  'AI/Machine Learning': 'bg-emerald-500/10 text-emerald-400 border-emerald-400/20',
-  'Data & Analytics': 'bg-cyan-500/10 text-cyan-400 border-cyan-400/20',
-  'DevOps & Cloud': 'bg-red-500/10 text-red-400 border-red-400/20',
-  'Mobile App Development': 'bg-purple-500/10 text-purple-400 border-purple-400/20',
-  'Marketing & SEO': 'bg-yellow-500/10 text-yellow-400 border-yellow-400/20',
-  'UI/UX Design': 'bg-pink-500/10 text-pink-400 border-pink-400/20',
-  default: 'bg-neutral-500/10 text-neutral-400 border-neutral-400/20',
-};
-
-const getPopularity = (ratings: number): "legendary" | "famous" | "popular" | "rising" => {
-  if (ratings >= 4.8) return 'legendary';
-  if (ratings >= 4.5) return 'famous';
-  if (ratings >= 4.0) return 'popular';
-  return 'rising';
-};
-
-const formatNumber = (n: number) =>
-  n >= 1e6 ? `${+(n / 1e6).toFixed(1)}M` :
-    n >= 1e3 ? `${+(n / 1e3).toFixed(1)}k` :
-      n.toString();
-
+// 🟢 Fix: Removed the unused index parameter entirely
 const renderCell = (
   record: Agency,
-  key: ColumnKey,
-  idx: number
+  key: ColumnKey
 ) => {
   const value = record[key];
 
@@ -215,7 +226,7 @@ export default function AgencyDiscovery() {
   useEffect(() => {
     const fetchAgencyData = async () => {
       setIsLoading(true);
-      const agencyData = YC as unknown as any[];
+      const agencyData = YC as unknown as YCData[];
 
       try {
         const fetched = await Promise.all(
@@ -226,7 +237,6 @@ export default function AgencyDiscovery() {
             const industryDomain = mapLanguageToDomain(raw.language);
             const assignedServices = getRandomServices(industryDomain);
 
-            // PRIORITY: JSON Value -> API Fallback
             const finalRating = agency.rating_count ?? 0;
             const finalProjects = agency.projects_count ?? (raw.forks_count || 0);
 
@@ -284,7 +294,7 @@ export default function AgencyDiscovery() {
       <div className="flex flex-col gap-5 w-full z-10 mb-8">
         <div className="flex flex-col sm:flex-row justify-between items-start gap-4">
           <div className="flex flex-col gap-5 w-full">
-            <div className="text-2xl flex items-center gap-2 sm:text-3xl md:text-4xl lg:text-4xl font-medium leading-[100%]">
+            <div className="text-2xl flex items-center gap-2 sm:text-3xl md:text-4xl lg:text-4xl font-medium leading-[100%] text-white">
               <span>Top</span>
               <span>Agencies</span>
             </div>
@@ -346,7 +356,8 @@ export default function AgencyDiscovery() {
                   <tr key={idx} className="border-b border-neutral-800/30 group hover:bg-neutral-900/20 transition">
                     {columns.map(({ key }) => (
                       <td key={key} className="py-4 px-6 text-sm">
-                        {renderCell(agency, key, idx)}
+                        {/* 🟢 Fix: Removed passing idx to renderCell */}
+                        {renderCell(agency, key)}
                       </td>
                     ))}
                   </tr>
@@ -359,17 +370,17 @@ export default function AgencyDiscovery() {
             {filtered.map((agency, idx) => (
               <div key={idx} className="border border-neutral-800/50 p-4 bg-black/40 backdrop-blur-sm space-y-5 hover:border-neutral-700 transition">
                 <div className="flex flex-col gap-2 text-sm text-white font-medium">
-                  {renderCell(agency, "agency_name", idx)}
-                  {renderCell(agency, "domain", idx)}
-                  {renderCell(agency, "services", idx)}
-                  {renderCell(agency, "popularity", idx)}
+                  {renderCell(agency, "agency_name")}
+                  {renderCell(agency, "domain")}
+                  {renderCell(agency, "services")}
+                  {renderCell(agency, "popularity")}
                 </div>
                 <div className="border-t border-neutral-800/50" />
                 <div className="grid grid-cols-2 gap-4 text-sm">
                   {columns.filter(({ key }) => ["rating_count", "projects_count"].includes(key)).map(({ key, label }) => (
                     <div key={key} className="flex flex-col gap-0.5">
                       <span className="text-neutral-400 font-medium">{label}</span>
-                      <div className="text-white font-semibold">{renderCell(agency, key, idx)}</div>
+                      <div className="text-white font-semibold">{renderCell(agency, key)}</div>
                     </div>
                   ))}
                 </div>
@@ -378,13 +389,13 @@ export default function AgencyDiscovery() {
           </div>
 
           <div className="flex gap-3 mt-8 justify-center">
-            <button onClick={() => setPage(p => Math.max(p - 1, 1))} disabled={page === 1} className="hover:bg-neutral-900/20 cursor-pointer disabled:opacity-50 bg-black/40 border border-neutral-800/50 px-4 py-2 text-white"><ChevronsLeft /></button>
+            <button onClick={() => setPage(prev => Math.max(prev - 1, 1))} disabled={page === 1} className="hover:bg-neutral-900/20 cursor-pointer disabled:opacity-50 bg-black/40 border border-neutral-800/50 px-4 py-2 text-white"><ChevronsLeft /></button>
             <span className="bg-black/40 border border-neutral-800/50 px-4 py-2 text-white">{page}</span>
-            <button onClick={() => setPage(p => p + 1)} className="hover:bg-neutral-900/20 cursor-pointer bg-black/40 border border-neutral-800/50 px-4 py-2 text-white"><ChevronsRight /></button>
+            <button onClick={() => setPage(prev => prev + 1)} className="hover:bg-neutral-900/20 cursor-pointer bg-black/40 border border-neutral-800/50 px-4 py-2 text-white"><ChevronsRight /></button>
           </div>
         </>
       ) : (
-        <div className="text-center py-16"><div className="text-neutral-400 font-medium text-base">No agencies found matching your criteria.</div></div>
+        <div className="text-center py-16"><div className="text-neutral-400 font-medium text-base text-white">No agencies found matching your criteria.</div></div>
       )}
     </div>
   );
