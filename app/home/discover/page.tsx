@@ -8,8 +8,6 @@ import YC from "@/lib/YC.json";
 
 // --- SERVICE DEFINITIONS ---
 
-// DOMAINS constant removed as it was unused
-
 const DOMAIN_SERVICES_MAP: { [key: string]: string[] } = {
   'Web Development': ['Frontend Engineering', 'E-commerce Solutions', 'CMS Integration', 'API Development'],
   'AI/Machine Learning': ['LLM Integration', 'Predictive Modeling', 'Computer Vision', 'Data Science'],
@@ -24,16 +22,9 @@ const DOMAIN_SERVICES_MAP: { [key: string]: string[] } = {
 const mapLanguageToDomain = (language: string | null): string => {
   if (!language) return 'Unknown';
   const lang = language.toLowerCase();
-
-  if (['typescript', 'javascript', 'html', 'css', 'php', 'ruby'].includes(lang)) {
-    return 'Web Development';
-  }
-  if (['python', 'r'].includes(lang)) {
-    return 'AI/Machine Learning';
-  }
-  if (['java', 'scala', 'c++', 'go', 'c#'].includes(lang)) {
-    return 'DevOps & Cloud';
-  }
+  if (['typescript', 'javascript', 'html', 'css', 'php', 'ruby'].includes(lang)) return 'Web Development';
+  if (['python', 'r'].includes(lang)) return 'AI/Machine Learning';
+  if (['java', 'scala', 'c++', 'go', 'c#'].includes(lang)) return 'DevOps & Cloud';
   return 'Data & Analytics';
 }
 
@@ -53,6 +44,7 @@ interface Agency {
   html_url: string;
   description?: string;
   repoLink?: string;
+  websiteUrl?: string; // Added for redirect
   matchScore?: number;
 }
 
@@ -65,9 +57,9 @@ interface Message {
 }
 
 const getPopularity = (ratings: number): "legendary" | "famous" | "popular" | "rising" => {
-  if (ratings >= 50000) return 'legendary';
-  if (ratings >= 10000) return 'famous';
-  if (ratings >= 1000) return 'popular';
+  if (ratings >= 4.8) return 'legendary';
+  if (ratings >= 4.5) return 'famous';
+  if (ratings >= 4.0) return 'popular';
   return 'rising';
 };
 
@@ -79,59 +71,31 @@ const formatNumber = (n: number) =>
 // AI Matching Algorithm
 const matchAgenciesToPrompt = (prompt: string, agencies: Agency[]): Agency[] => {
   const lowerPrompt = prompt.toLowerCase();
-
-  // Extract keywords from prompt
   const keywords = lowerPrompt.split(/\s+/).filter(word => word.length > 3);
 
-  // Score each agency based on relevance
   const scoredAgencies = agencies.map(agency => {
     let score = 0;
-
-    // Check domain match
-    if (lowerPrompt.includes(agency.domain.toLowerCase())) {
-      score += 30;
-    }
-
-    // Check services match
+    if (lowerPrompt.includes(agency.domain.toLowerCase())) score += 30;
     agency.services?.forEach(service => {
-      if (lowerPrompt.includes(service.toLowerCase())) {
-        score += 20;
-      }
+      if (lowerPrompt.includes(service.toLowerCase())) score += 20;
     });
-
-    // Check description match
     if (agency.description) {
       keywords.forEach(keyword => {
-        if (agency.description!.toLowerCase().includes(keyword)) {
-          score += 5;
-        }
+        if (agency.description!.toLowerCase().includes(keyword)) score += 5;
       });
     }
-
-    // Keyword matching in domain and services
     keywords.forEach(keyword => {
-      if (agency.domain.toLowerCase().includes(keyword)) {
-        score += 10;
-      }
+      if (agency.domain.toLowerCase().includes(keyword)) score += 10;
       agency.services?.forEach(service => {
-        if (service.toLowerCase().includes(keyword)) {
-          score += 8;
-        }
+        if (service.toLowerCase().includes(keyword)) score += 8;
       });
     });
-
-    // Boost popular agencies slightly
     if (agency.popularity === 'legendary') score += 5;
     else if (agency.popularity === 'famous') score += 3;
-
-    // Boost agencies with high project count (active agencies)
     if (agency.projects_count > 1000) score += 5;
-    else if (agency.projects_count > 500) score += 3;
-
     return { ...agency, matchScore: score };
   });
 
-  // Sort by score and return top 3
   return scoredAgencies
     .filter(a => a.matchScore! > 0)
     .sort((a, b) => (b.matchScore || 0) - (a.matchScore || 0))
@@ -147,7 +111,6 @@ export default function AIAgencyMatcher() {
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
-  // Auto-scroll to bottom
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   };
@@ -156,47 +119,41 @@ export default function AIAgencyMatcher() {
     scrollToBottom();
   }, [messages]);
 
-  // Initialize agencies data
   useEffect(() => {
     const fetchAgencyData = async () => {
       setIsInitializing(true);
-
-      const agencyData = YC as unknown as { company: string; repo: string; logo: string }[];
-      const repoNames = agencyData.map(r => r.repo).filter(Boolean);
-
-      if (repoNames.length === 0) {
-        setIsInitializing(false);
-        return;
-      }
+      const agencyData = YC as unknown as any[];
 
       try {
         const fetched = await Promise.all(
           agencyData.map(async (agency) => {
             const res = await fetch(`/api/githubOverview?repo=${agency.repo}`);
-            if (!res.ok) return null;
-            const raw = await res.json();
-            const stars = raw.stargazers_count || 0;
+            const raw = res.ok ? await res.json() : {};
 
             const industryDomain = mapLanguageToDomain(raw.language);
             const assignedServices = getRandomServices(industryDomain);
+
+            // PRIORITY: JSON Values (Decimals, Projects, Website)
+            const finalRating = agency.rating_count ?? 4.0;
+            const finalProjects = agency.projects_count ?? (raw.forks_count || 0);
 
             return {
               agency_name: agency.company,
               domain: industryDomain,
               services: assignedServices,
-              rating_count: stars,
-              projects_count: raw.forks_count,
+              rating_count: finalRating,
+              projects_count: finalProjects,
               imgUrl: agency.logo,
               repoLink: agency.repo,
-              description: raw.description || "No service details available",
-              popularity: getPopularity(stars),
-              html_url: raw.html_url,
+              websiteUrl: agency.website,
+              description: raw.description || "Specialized engineering and design solutions.",
+              popularity: getPopularity(finalRating),
+              html_url: raw.html_url || `https://github.com/${agency.repo}`,
             } as Agency;
           })
         );
 
-        const clean = fetched.filter(Boolean) as Agency[];
-        setAgencies(clean);
+        setAgencies(fetched.filter(Boolean));
       } catch (err) {
         console.error("Fetch error", err);
       } finally {
@@ -222,10 +179,8 @@ export default function AIAgencyMatcher() {
     setInput('');
     setIsLoading(true);
 
-    // Simulate AI processing delay
     setTimeout(() => {
       const matchedAgencies = matchAgenciesToPrompt(userMessage.content, agencies);
-
       const assistantMessage: Message = {
         id: (Date.now() + 1).toString(),
         type: 'assistant',
@@ -235,7 +190,6 @@ export default function AIAgencyMatcher() {
         agencies: matchedAgencies,
         timestamp: new Date(),
       };
-
       setMessages(prev => [...prev, assistantMessage]);
       setIsLoading(false);
     }, 1000);
@@ -248,7 +202,6 @@ export default function AIAgencyMatcher() {
     }
   };
 
-  // Auto-resize textarea
   useEffect(() => {
     if (textareaRef.current) {
       textareaRef.current.style.height = 'auto';
@@ -258,30 +211,20 @@ export default function AIAgencyMatcher() {
 
   return (
     <div className="relative w-full h-screen flex flex-col bg-gradient-to-br from-neutral-950 via-neutral-900 to-neutral-950">
-      {/* Animated Background */}
       <div className="absolute inset-0 overflow-hidden pointer-events-none">
         <div className="absolute top-0 -left-4 w-72 h-72 bg-yellow-500/5 rounded-full blur-3xl animate-pulse" />
         <div className="absolute top-1/4 right-0 w-96 h-96 bg-orange-500/5 rounded-full blur-3xl animate-pulse" style={{ animationDelay: '2s' }} />
         <div className="absolute bottom-0 left-1/3 w-80 h-80 bg-pink-500/5 rounded-full blur-3xl animate-pulse" style={{ animationDelay: '4s' }} />
       </div>
 
-      {/* Header */}
       <div className="relative border-b border-neutral-800/50 bg-black/40 backdrop-blur-xl sticky top-0 z-10 shadow-2xl">
         <div className="max-w-5xl mx-auto px-6 py-5">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-4">
-              <div className="relative">
-                <div className="absolute inset-0 bg-gradient-to-br from-yellow-400 via-orange-500 to-pink-500 rounded-2xl blur-md opacity-50" />
-                {/* <div className="relative w-12 h-12 rounded-2xl bg-gradient-to-br from-yellow-400 via-orange-500 to-pink-500 flex items-center justify-center shadow-lg"> */}
-                {/* <Sparkles className="w-6 h-6 text-white" /> */}
-                {/* </div> */}
-              </div>
-              <div>
-                <Link href="/" className="inline-flex font-instrument items-center font-mono text-white text-[1.9rem] sm:text-[2.5rem] font-medium leading-none tracking-tight">
-                  <span className="text-white">Yth</span>
-                  <span className="text-neutral-500">eys</span>
-                </Link>
-              </div>
+              <Link href="/" className="inline-flex font-instrument items-center font-mono text-white text-[1.9rem] sm:text-[2.5rem] font-medium leading-none tracking-tight">
+                <span className="text-white">Yth</span>
+                <span className="text-neutral-500">eys</span>
+              </Link>
             </div>
             {!isInitializing && agencies.length > 0 && (
               <div className="hidden sm:flex items-center gap-2 px-4 py-2 bg-neutral-800/30 border border-neutral-700/30 rounded-lg">
@@ -293,7 +236,6 @@ export default function AIAgencyMatcher() {
         </div>
       </div>
 
-      {/* Messages Container */}
       <div className="relative flex-1 overflow-y-auto">
         <div className="max-w-5xl mx-auto px-6 py-8">
           {isInitializing ? (
@@ -309,12 +251,6 @@ export default function AIAgencyMatcher() {
             </div>
           ) : messages.length === 0 ? (
             <div className="flex flex-col items-center justify-center h-[60vh] gap-8">
-              <div className="relative">
-                <div className="absolute inset-0 bg-gradient-to-br from-yellow-400/20 via-orange-500/20 to-pink-500/20 rounded-3xl blur-2xl" />
-                {/* <div className="relative w-20 h-20 rounded-3xl bg-gradient-to-br from-yellow-400/10 via-orange-500/10 to-pink-500/10 flex items-center justify-center border border-neutral-800/50">
-                  {/* <Sparkles className="w-10 h-10 text-yellow-400" /> */}
-                {/* </div> */}
-              </div>
               <div className="text-center space-y-3 max-w-2xl">
                 <h2 className="text-3xl font-bold bg-gradient-to-r from-white via-neutral-200 to-neutral-400 bg-clip-text text-transparent">
                   What are you building today?
@@ -348,10 +284,7 @@ export default function AIAgencyMatcher() {
           ) : (
             <div className="space-y-8">
               {messages.map((message) => (
-                <div
-                  key={message.id}
-                  className={`flex gap-4 ${message.type === 'user' ? 'justify-end' : 'justify-start'}`}
-                >
+                <div key={message.id} className={`flex gap-4 ${message.type === 'user' ? 'justify-end' : 'justify-start'}`}>
                   {message.type === 'assistant' && (
                     <div className="relative flex-shrink-0">
                       <div className="absolute inset-0 bg-gradient-to-br from-yellow-400 via-orange-500 to-pink-500 rounded-2xl blur-md opacity-40" />
@@ -362,124 +295,56 @@ export default function AIAgencyMatcher() {
                   )}
 
                   <div className={`flex flex-col gap-4 max-w-3xl ${message.type === 'user' ? 'items-end' : 'items-start'}`}>
-                    <div
-                      className={`px-5 py-3 rounded-2xl shadow-lg ${message.type === 'user'
-                        ? 'bg-gradient-to-r from-blue-600 to-blue-500 text-white'
-                        : 'bg-neutral-900/60 border border-neutral-800/50 text-neutral-200 backdrop-blur-sm'
-                        }`}
-                    >
+                    <div className={`px-5 py-3 rounded-2xl shadow-lg ${message.type === 'user' ? 'bg-gradient-to-r from-blue-600 to-blue-500 text-white' : 'bg-neutral-900/60 border border-neutral-800/50 text-neutral-200 backdrop-blur-sm'}`}>
                       {message.content}
                     </div>
 
-                    {/* Agency Cards */}
                     {message.agencies && message.agencies.length > 0 && (
                       <div className="w-full space-y-4 mt-2">
                         {message.agencies.map((agency, idx) => (
-                          <div
-                            key={idx}
-                            className="relative bg-neutral-900/60 border border-neutral-800/50 rounded-2xl p-6 hover:border-neutral-700/50 transition-all group backdrop-blur-sm hover:shadow-2xl hover:shadow-yellow-500/5"
-                          >
-                            {/* Rank Badge */}
+                          <div key={idx} className="relative bg-neutral-900/60 border border-neutral-800/50 rounded-2xl p-6 hover:border-neutral-700/50 transition-all group backdrop-blur-sm hover:shadow-2xl hover:shadow-yellow-500/5">
                             <div className="absolute -top-3 -left-3 w-10 h-10 bg-gradient-to-br from-yellow-400 to-orange-500 rounded-xl flex items-center justify-center shadow-lg font-bold text-white">
                               #{idx + 1}
                             </div>
 
                             <div className="flex items-start gap-5">
-                              {/* Agency Logo */}
                               {agency.imgUrl && (
                                 <div className="relative flex-shrink-0">
                                   <div className="absolute inset-0 bg-gradient-to-br from-yellow-400/20 to-pink-500/20 rounded-xl blur-md" />
-                                  <Image
-                                    src={agency.imgUrl}
-                                    alt={agency.agency_name}
-                                    width={64}
-                                    height={64}
-                                    className="relative rounded-xl border border-neutral-800/50"
-                                    unoptimized
-                                  />
+                                  <Image src={agency.imgUrl} alt={agency.agency_name} width={64} height={64} className="relative rounded-xl border border-neutral-800/50" unoptimized />
                                 </div>
                               )}
 
-                              {/* Agency Info */}
                               <div className="flex-1 min-w-0">
                                 <div className="mb-3">
-                                  <h3 className="text-xl font-bold text-white group-hover:text-yellow-300 transition-colors mb-2">
-                                    {agency.agency_name}
-                                  </h3>
-                                  <p className="text-sm text-neutral-400 leading-relaxed">
-                                    {agency.description}
-                                  </p>
+                                  <h3 className="text-xl font-bold text-white group-hover:text-yellow-300 transition-colors mb-2">{agency.agency_name}</h3>
+                                  <p className="text-sm text-neutral-400 leading-relaxed">{agency.description}</p>
                                 </div>
 
-                                {/* Domain & Services */}
                                 <div className="flex flex-wrap gap-2 mb-4">
-                                  <span className="px-3 py-1.5 bg-blue-500/15 text-blue-400 border border-blue-400/30 rounded-lg text-xs font-semibold">
-                                    🎯 {agency.domain}
-                                  </span>
+                                  <span className="px-3 py-1.5 bg-blue-500/15 text-blue-400 border border-blue-400/30 rounded-lg text-xs font-semibold">🎯 {agency.domain}</span>
                                   {agency.services?.slice(0, 3).map((service, i) => (
-                                    <span
-                                      key={i}
-                                      className="px-3 py-1.5 bg-neutral-800/60 text-neutral-300 border border-neutral-700/40 rounded-lg text-xs font-medium"
-                                    >
-                                      {service}
-                                    </span>
+                                    <span key={i} className="px-3 py-1.5 bg-neutral-800/60 text-neutral-300 border border-neutral-700/40 rounded-lg text-xs font-medium">{service}</span>
                                   ))}
                                 </div>
 
-                                {/* Stats & Actions */}
                                 <div className="flex items-center justify-between flex-wrap gap-4">
                                   <div className="flex items-center gap-5 text-sm">
                                     <div className="flex items-center gap-2 text-neutral-400">
                                       <Star className="w-4 h-4 text-yellow-400 fill-yellow-400" />
-                                      <span className="font-mono font-semibold text-white">{formatNumber(agency.rating_count)}</span>
+                                      <span className="font-mono font-semibold text-white">{agency.rating_count.toFixed(1)}</span>
                                     </div>
                                     <div className="flex items-center gap-2 text-neutral-400">
                                       <Briefcase className="w-4 h-4 text-blue-400" />
                                       <span className="font-mono font-semibold text-white">{formatNumber(agency.projects_count)}</span>
                                     </div>
-                                    <span
-                                      className={`capitalize text-xs px-3 py-1 rounded-lg font-semibold ${agency.popularity === 'legendary'
-                                        ? 'bg-gradient-to-r from-yellow-500/20 to-orange-500/20 text-yellow-400 border border-yellow-400/30'
-                                        : agency.popularity === 'famous'
-                                          ? 'bg-purple-500/15 text-purple-400 border border-purple-400/30'
-                                          : agency.popularity === 'popular'
-                                            ? 'bg-sky-500/15 text-sky-400 border border-sky-400/30'
-                                            : 'bg-green-500/15 text-green-400 border border-green-400/30'
-                                        }`}
-                                    >
-                                      {agency.popularity === 'legendary' && '🏆 '}
-                                      {agency.popularity}
-                                    </span>
+                                    <span className={`capitalize text-xs px-3 py-1 rounded-lg font-semibold ${agency.popularity === 'legendary' ? 'bg-gradient-to-r from-yellow-500/20 to-orange-500/20 text-yellow-400 border border-yellow-400/30' : 'bg-green-500/15 text-green-400 border border-green-400/30'}`}>{agency.popularity}</span>
                                   </div>
 
-                                  <Link
-                                    href={agency.repoLink || agency.html_url}
-                                    target="_blank"
-                                    rel="noopener noreferrer"
-                                    className="flex items-center gap-2 px-5 py-2.5 bg-gradient-to-r from-yellow-500/10 to-orange-500/10 hover:from-yellow-500/20 hover:to-orange-500/20 text-yellow-400 border border-yellow-400/30 rounded-xl text-sm font-semibold transition-all hover:scale-105 active:scale-95"
-                                  >
-                                    View Agency
-                                    <ExternalLink className="w-4 h-4" />
+                                  <Link href={agency.websiteUrl || `https://github.com/${agency.repoLink}`} target="_blank" rel="noopener noreferrer" className="flex items-center gap-2 px-5 py-2.5 bg-gradient-to-r from-yellow-500/10 to-orange-500/10 hover:from-yellow-500/20 hover:to-orange-500/20 text-yellow-400 border border-yellow-400/30 rounded-xl text-sm font-semibold transition-all hover:scale-105 active:scale-95">
+                                    View Agency <ExternalLink className="w-4 h-4" />
                                   </Link>
                                 </div>
-
-                                {/* Match Score Indicator */}
-                                {agency.matchScore && agency.matchScore > 0 && (
-                                  <div className="mt-4 pt-4 border-t border-neutral-800/50">
-                                    <div className="flex items-center justify-between">
-                                      <span className="text-xs text-neutral-500 font-medium">Match Score</span>
-                                      <div className="flex items-center gap-3">
-                                        <div className="w-40 h-2 bg-neutral-800 rounded-full overflow-hidden">
-                                          <div
-                                            className="h-full bg-gradient-to-r from-yellow-400 via-orange-500 to-pink-500 rounded-full transition-all duration-700 ease-out"
-                                            style={{ width: `${Math.min((agency.matchScore / 100) * 100, 100)}%` }}
-                                          />
-                                        </div>
-                                        <span className="font-mono text-sm font-bold text-yellow-400">{agency.matchScore}%</span>
-                                      </div>
-                                    </div>
-                                  </div>
-                                )}
                               </div>
                             </div>
                           </div>
@@ -513,14 +378,12 @@ export default function AIAgencyMatcher() {
                   </div>
                 </div>
               )}
-
               <div ref={messagesEndRef} />
             </div>
           )}
         </div>
       </div>
 
-      {/* Input Area */}
       <div className="relative border-t border-neutral-800/50 bg-black/40 backdrop-blur-xl sticky bottom-0 shadow-2xl">
         <div className="max-w-5xl mx-auto px-6 py-5">
           <form onSubmit={handleSubmit} className="relative">
@@ -531,7 +394,7 @@ export default function AIAgencyMatcher() {
                 value={input}
                 onChange={(e) => setInput(e.target.value)}
                 onKeyDown={handleKeyDown}
-                placeholder="Describe your project needs... (Press Enter to send, Shift+Enter for new line)"
+                placeholder="Describe your project needs... (Press Enter to send)"
                 disabled={isInitializing || isLoading}
                 className="relative w-full px-6 py-4 pr-14 bg-neutral-900/60 border border-neutral-800/50 rounded-2xl text-white placeholder-neutral-500 focus:outline-none focus:ring-2 focus:ring-yellow-400/50 focus:border-yellow-400/50 resize-none max-h-32 disabled:opacity-50 disabled:cursor-not-allowed backdrop-blur-sm transition-all"
                 rows={1}
